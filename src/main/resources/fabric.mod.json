@@ -1,0 +1,18 @@
+{
+  "id": "easyexcavate",
+  "name": "Easy Excavate",
+  "description": "VeinMiner / OreExcavation for Fabric",
+  "version": "1.0.0",
+  "side": "universal",
+  "initializers": [
+    "com.shnupbups.easyexcavate.EasyExcavate",
+    "com.shnupbups.easyexcavate.ClientKeybind"
+  ],
+  "requires": {
+    "fabric": "*"
+  },
+  "mixins": {
+    "client": "easyexcavate.client.json",
+    "common": "easyexcavate.common.json"
+  }
+}
