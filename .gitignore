@@ -4,6 +4,7 @@
 gradle/
 build/
 out/
+classes/
 
 # idea
 
@@ -26,4 +27,4 @@ run/
 
 # easyexcavate
 
-logo.pdn
+*.pdn

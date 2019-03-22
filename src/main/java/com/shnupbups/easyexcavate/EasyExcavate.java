@@ -7,8 +7,10 @@ import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.network.ServerSidePacketRegistry;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
 import net.minecraft.client.network.packet.CustomPayloadS2CPacket;
 import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.ItemStack;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.network.packet.CustomPayloadC2SPacket;
 import net.minecraft.util.Identifier;
@@ -70,17 +72,23 @@ public class EasyExcavate implements ModInitializer {
 			if(pos==null)return;
 			PlayerEntity player = packetContext.getPlayer();
 			World world = player.getEntityWorld();
-			world.breakBlock(pos,!player.isCreative());
+			ItemStack stack = player.getMainHandStack();
+			BlockState state = world.getBlockState(pos);
+			stack.onBlockBroken(world, state, pos, player);
+			if (!player.isCreative()) {
+				ItemStack stack2 = stack.isEmpty() ? ItemStack.EMPTY : stack.copy();
+				state.getBlock().afterBreak(world, player, pos, state, world.getBlockEntity(pos), stack2);
+			}
+			world.breakBlock(pos,false);
 		});
 
 		ServerSidePacketRegistry.INSTANCE.register(END, (packetContext, packetByteBuf) -> {
 			int blocksBroken = 0;
 			blocksBroken = packetByteBuf.readInt();
 			PlayerEntity player = packetContext.getPlayer();
-			player.getMainHandStack().applyDamage(blocksBroken-1, player);
-			float exhaust = (0.005F*blocksBroken)*((blocksBroken*config.bonusExhaustionMultiplier)+1);
+			float exhaust = (0.005F*blocksBroken)*(blocksBroken*config.bonusExhaustionMultiplier);
 			player.addExhaustion(exhaust);
-			debugOut("End packet recieved! blocks broken: "+blocksBroken+" exhaust: "+exhaust);
+			debugOut("End packet recieved! blocks broken: "+blocksBroken+" exhaust: "+exhaust+" actual exhaust: "+(exhaust+0.005F*blocksBroken));
 		});
 	}
 
@@ -122,7 +130,10 @@ public class EasyExcavate implements ModInitializer {
 		return new CustomPayloadC2SPacket(BREAK_BLOCK, buf);
 	}
 
-	public void debugOut(String out) {
+	public static void debugOut(String out) {
 		if(config.debugOutput) System.out.println(out);
+	}
+	public static void debugOut(Object out) {
+		debugOut(out.toString());
 	}
 }

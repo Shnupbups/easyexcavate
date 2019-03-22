@@ -48,7 +48,7 @@ public class EasyExcavateClient implements ClientModInitializer {
 			BlockPos currentPos = pos;
 			ArrayList<BlockPos> nextPos = new ArrayList<>();
 			float exhaust = 0;
-			System.out.println("Start packet recieved! pos: "+pos+" block: "+block+" maxB: "+maxBlocks+" maxR: "+maxRange+" bem: "+bonusExhaustionMultiplier);
+			EasyExcavate.debugOut("Start packet recieved! pos: "+pos+" block: "+block+" maxB: "+maxBlocks+" maxR: "+maxRange+" bem: "+bonusExhaustionMultiplier);
 			while (blocksBroken < maxBlocks && player.isUsingEffectiveTool(block.getDefaultState()) && player.getHungerManager().getFoodLevel()>exhaust/2 && blocksBroken<(player.getMainHandStack().getDurability()-player.getMainHandStack().getDamage())) {
 				ArrayList<BlockPos> neighbours = getSameNeighbours(world,currentPos,block);
 				neighbours.removeAll(brokenPos);
@@ -58,8 +58,7 @@ public class EasyExcavateClient implements ClientModInitializer {
 							break;
 						}
 						if(!brokenPos.contains(p)&&player.isUsingEffectiveTool(world.getBlockState(p))) {
-							if(p.distanceTo(pos)<=maxRange)nextPos.add(p);
-							//world.breakBlock(p, !player.isCreative());
+							if(Math.sqrt(p.squaredDistanceTo(pos))<=maxRange)nextPos.add(p);
 							MinecraftClient.getInstance().getNetworkHandler().getClientConnection().sendPacket(EasyExcavate.createBreakPacket(p));
 							brokenPos.add(p);
 							blocksBroken++;
@@ -74,7 +73,7 @@ public class EasyExcavateClient implements ClientModInitializer {
 			}
 			if(!player.isCreative()) {
 				MinecraftClient.getInstance().getNetworkHandler().getClientConnection().sendPacket(EasyExcavate.createEndPacket(blocksBroken));
-				System.out.println("End packet sent! blocks broken: "+blocksBroken);
+				EasyExcavate.debugOut("End packet sent! blocks broken: "+blocksBroken);
 			}
 		});
 	}
