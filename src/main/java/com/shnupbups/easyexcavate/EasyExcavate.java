@@ -136,4 +136,8 @@ public class EasyExcavate implements ModInitializer {
 	public static void debugOut(Object out) {
 		debugOut(out.toString());
 	}
+
+	public static boolean reverseBehavior() {
+		return config.reverseBehavior;
+	}
 }

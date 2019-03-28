@@ -19,7 +19,7 @@ public abstract class BlockBreakMixin {
 
 	@Inject(at = @At(value="HEAD"), method = "onBreak")
 	public void onBreak(World world, BlockPos pos, BlockState state, PlayerEntity player, CallbackInfo cbinfo) {
-		if(world.isClient()&& EasyExcavateClient.keybind.isPressed()&&player.isUsingEffectiveTool(state)&&player.getHungerManager().getFoodLevel()>0) {
+		if (world.isClient() && (EasyExcavateClient.keybind.isPressed() && !EasyExcavate.reverseBehavior() || !EasyExcavateClient.keybind.isPressed() && EasyExcavate.reverseBehavior()) && player.isUsingEffectiveTool(state) && player.getHungerManager().getFoodLevel() > 0) {
 			MinecraftClient.getInstance().getNetworkHandler().getClientConnection().sendPacket(EasyExcavate.createRequestPacket(pos, state.getBlock()));
 		}
 	}
