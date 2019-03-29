@@ -140,4 +140,8 @@ public class EasyExcavate implements ModInitializer {
 	public static boolean reverseBehavior() {
 		return config.reverseBehavior;
 	}
+
+	public static String[] blacklistBlocks() {
+		return config.blacklistBlocks;
+	}
 }
