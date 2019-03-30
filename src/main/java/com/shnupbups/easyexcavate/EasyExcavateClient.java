@@ -64,7 +64,7 @@ public class EasyExcavateClient implements ClientModInitializer {
 							break;
 						}
 						if(!brokenPos.contains(p)&&player.isUsingEffectiveTool(world.getBlockState(p))) {
-							if(Math.sqrt(p.squaredDistanceTo(pos))<=maxRange)nextPos.add(p);
+							if(Math.sqrt(p.getSquaredDistance(pos))<=maxRange)nextPos.add(p);
 							MinecraftClient.getInstance().getNetworkHandler().getClientConnection().sendPacket(EasyExcavate.createBreakPacket(p));
 							brokenPos.add(p);
 							blocksBroken++;
