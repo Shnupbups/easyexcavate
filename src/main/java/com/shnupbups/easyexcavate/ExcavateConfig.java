@@ -18,6 +18,6 @@ public class ExcavateConfig {
 	}
 
 	public ExcavateConfig() {
-		this(128, 8, 0.125f, false, false, null);
+		this(128, 8, 0.125f, false, false, new String[]{""});
 	}
 }

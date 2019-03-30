@@ -39,7 +39,7 @@ public class EasyExcavate implements ModInitializer {
 		try (FileReader reader = new FileReader(configFile)) {
 			config = new Gson().fromJson(reader, ExcavateConfig.class);
 			System.out.println("[EasyExcavate] Config loaded!");
-			debugOut("[EasyExcavate] Debug Output enabled! maxBlocks: "+config.maxBlocks+" maxRange: "+config.maxRange+" BEM: "+config.bonusExhaustionMultiplier);
+			debugOut("[EasyExcavate] Debug Output enabled! maxBlocks: "+config.maxBlocks+" maxRange: "+config.maxRange+" BEM: "+config.bonusExhaustionMultiplier+" reverseBehavior: "+config.reverseBehavior+" blacklistBlocks: "+config.blacklistBlocks);
 		} catch (IOException e) {
 			System.out.println("[EasyExcavate] No config found, generating!");
 			config = new ExcavateConfig();
@@ -60,8 +60,8 @@ public class EasyExcavate implements ModInitializer {
 			if(pos==null||block==null)return;
 			debugOut("Config request packet recieved! pos: "+pos+" block: "+block);
 			ServerPlayerEntity player = (ServerPlayerEntity) packetContext.getPlayer();
-			player.networkHandler.sendPacket(createStartPacket(pos, block, config.maxBlocks, config.maxRange, config.bonusExhaustionMultiplier));
-			debugOut("Start packet sent! pos: "+pos+" block: "+block+" maxB: "+config.maxBlocks+" maxR: "+config.maxRange+" bem: "+config.bonusExhaustionMultiplier);
+			player.networkHandler.sendPacket(createStartPacket(pos, block, config.maxBlocks, config.maxRange, config.bonusExhaustionMultiplier, config.blacklistBlocks));
+			debugOut("Start packet sent! pos: "+pos+" block: "+block+" maxB: "+config.maxBlocks+" maxR: "+config.maxRange+" bem: "+config.bonusExhaustionMultiplier+" blackB: "+config.blacklistBlocks);
 		});
 
 		ServerSidePacketRegistry.INSTANCE.register(BREAK_BLOCK, (packetContext, packetByteBuf) -> {
@@ -102,7 +102,7 @@ public class EasyExcavate implements ModInitializer {
 		return new CustomPayloadC2SPacket(REQUEST_CONFIG, buf);
 	}
 
-	public static CustomPayloadS2CPacket createStartPacket(BlockPos pos, Block block, int maxBlocks, int maxRange, float bonusExhaustionMultiplier) {
+	public static CustomPayloadS2CPacket createStartPacket(BlockPos pos, Block block, int maxBlocks, int maxRange, float bonusExhaustionMultiplier, String[] blacklistBlocks) {
 		PacketByteBuf buf = new PacketByteBuf(Unpooled.buffer());
 		buf.writeBoolean(pos != null && block != null);
 		if (pos != null && block != null) {
@@ -112,6 +112,14 @@ public class EasyExcavate implements ModInitializer {
 		buf.writeInt(maxBlocks);
 		buf.writeInt(maxRange);
 		buf.writeFloat(bonusExhaustionMultiplier);
+		if (blacklistBlocks != null) {
+			buf.writeInt(blacklistBlocks.length);
+			for (String s: blacklistBlocks) {
+				buf.writeInt(s.length());
+				buf.writeString(s);
+			}
+		} else
+			buf.writeInt(0);
 		return new CustomPayloadS2CPacket(START, buf);
 	}
 
@@ -139,9 +147,5 @@ public class EasyExcavate implements ModInitializer {
 
 	public static boolean reverseBehavior() {
 		return config.reverseBehavior;
-	}
-
-	public static String[] blacklistBlocks() {
-		return config.blacklistBlocks;
 	}
 }
