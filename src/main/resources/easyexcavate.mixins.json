@@ -3,7 +3,9 @@
   "package": "com.shnupbups.easyexcavate.mixins",
   "compatibilityLevel": "JAVA_8",
   "mixins": [
-
+  ],
+  "client": [
+    "BlockBreakMixin"
   ],
   "injectors": {
     "defaultRequire": 1

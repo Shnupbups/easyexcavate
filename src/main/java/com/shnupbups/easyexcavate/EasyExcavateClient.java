@@ -5,6 +5,7 @@ import net.fabricmc.fabric.api.client.keybinding.FabricKeyBinding;
 import net.fabricmc.fabric.api.client.keybinding.KeyBindingRegistry;
 import net.fabricmc.fabric.api.network.ClientSidePacketRegistry;
 import net.minecraft.block.Block;
+import net.minecraft.block.BlockWithEntity;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.entity.player.PlayerEntity;
@@ -24,7 +25,7 @@ public class EasyExcavateClient implements ClientModInitializer {
 		KeyBindingRegistry.INSTANCE.addCategory("easyexcavate.category");
 		keybind = FabricKeyBinding.Builder.create(
 					new Identifier("easyexcavate:excavate"),
-					InputUtil.Type.KEY_KEYBOARD,
+					InputUtil.Type.KEYSYM,
 					96,
 					"easyexcavate.category"
 				).build();
@@ -41,6 +42,7 @@ public class EasyExcavateClient implements ClientModInitializer {
 			int maxBlocks = packetByteBuf.readInt();
 			int maxRange = packetByteBuf.readInt();
 			float bonusExhaustionMultiplier = packetByteBuf.readFloat();
+			boolean enableBlockEntities = packetByteBuf.readBoolean();
 			int blacklistBlocksLength = packetByteBuf.readInt();
 			String[] blacklistBlocks = new String[blacklistBlocksLength];
 			if (blacklistBlocksLength != 0)
@@ -53,14 +55,16 @@ public class EasyExcavateClient implements ClientModInitializer {
 			brokenPos.add(pos);
 			BlockPos currentPos = pos;
 			ArrayList<BlockPos> nextPos = new ArrayList<>();
+			EasyExcavate.debugOut(pos+ " be: "+world.getBlockEntity(pos));
 			float exhaust = 0;
-			EasyExcavate.debugOut("Start packet recieved! pos: "+pos+" block: "+block+" maxB: "+maxBlocks+" maxR: "+maxRange+" bem: "+bonusExhaustionMultiplier);
-			while (blocksBroken < maxBlocks && player.isUsingEffectiveTool(block.getDefaultState()) && player.getHungerManager().getFoodLevel()>exhaust/2 && blocksBroken<(player.getMainHandStack().getDurability()-player.getMainHandStack().getDamage())) {
+			EasyExcavate.debugOut("Start packet recieved! pos: "+pos+" block: "+block+" maxB: "+maxBlocks+" maxR: "+maxRange+" bem: "+bonusExhaustionMultiplier+" ebe: "+enableBlockEntities+" blacklist: "+Arrays.asList(blacklistBlocks));
+			while (blocksBroken < maxBlocks && player.isUsingEffectiveTool(block.getDefaultState()) && player.getHungerManager().getFoodLevel()>exhaust/2 && blocksBroken<(player.getMainHandStack().getDurability()-player.getMainHandStack().getDamage()) && !Arrays.asList(blacklistBlocks).contains(String.valueOf(block)) && (!(block instanceof BlockWithEntity) || enableBlockEntities)) {
+				EasyExcavate.debugOut(currentPos+ " be: "+world.getBlockEntity(currentPos));
 				ArrayList<BlockPos> neighbours = getSameNeighbours(world,currentPos,block);
 				neighbours.removeAll(brokenPos);
 				if(neighbours.size()>=1) {
 					for(BlockPos p:neighbours) {
-						if(blocksBroken>=maxBlocks||!player.isUsingEffectiveTool(block.getDefaultState())||player.getHungerManager().getFoodLevel()<=exhaust/2||blocksBroken>=(player.getMainHandStack().getDurability()-player.getMainHandStack().getDamage()) || Arrays.asList(blacklistBlocks).contains(String.valueOf(block).substring(6, String.valueOf(block).length() - 1))) {
+						if(blocksBroken>=maxBlocks||!player.isUsingEffectiveTool(block.getDefaultState())||player.getHungerManager().getFoodLevel()<=exhaust/2||blocksBroken>=(player.getMainHandStack().getDurability()-player.getMainHandStack().getDamage()) || Arrays.asList(blacklistBlocks).contains(String.valueOf(block).substring(6, String.valueOf(block).length() - 1)) || (block instanceof BlockWithEntity && !enableBlockEntities)) {
 							break;
 						}
 						if(!brokenPos.contains(p)&&player.isUsingEffectiveTool(world.getBlockState(p))) {

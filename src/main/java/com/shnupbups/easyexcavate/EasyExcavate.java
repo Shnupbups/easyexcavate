@@ -8,11 +8,14 @@ import net.fabricmc.fabric.api.network.ServerSidePacketRegistry;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.client.network.packet.CustomPayloadS2CPacket;
 import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.inventory.Inventory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.network.packet.CustomPayloadC2SPacket;
+import net.minecraft.sortme.ItemScatterer;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.PacketByteBuf;
 import net.minecraft.util.math.BlockPos;
@@ -23,6 +26,7 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.Arrays;
 
 public class EasyExcavate implements ModInitializer {
 
@@ -38,8 +42,13 @@ public class EasyExcavate implements ModInitializer {
 		File configFile = new File(FabricLoader.getInstance().getConfigDirectory(), "easyexcavate.json");
 		try (FileReader reader = new FileReader(configFile)) {
 			config = new Gson().fromJson(reader, ExcavateConfig.class);
+			try (FileWriter writer = new FileWriter(configFile)) {
+				writer.write(new GsonBuilder().setPrettyPrinting().create().toJson(config));
+			} catch (IOException e2) {
+				System.out.println("[EasyExcavate] Failed to update config file!");
+			}
 			System.out.println("[EasyExcavate] Config loaded!");
-			debugOut("[EasyExcavate] Debug Output enabled! maxBlocks: "+config.maxBlocks+" maxRange: "+config.maxRange+" BEM: "+config.bonusExhaustionMultiplier+" reverseBehavior: "+config.reverseBehavior+" blacklistBlocks: "+config.blacklistBlocks);
+			debugOut("[EasyExcavate] Debug Output enabled! maxBlocks: "+config.maxBlocks+" maxRange: "+config.maxRange+" BEM: "+config.bonusExhaustionMultiplier+" reverseBehavior: "+config.reverseBehavior+" blacklist: "+ Arrays.asList(config.blacklistBlocks));
 		} catch (IOException e) {
 			System.out.println("[EasyExcavate] No config found, generating!");
 			config = new ExcavateConfig();
@@ -60,8 +69,8 @@ public class EasyExcavate implements ModInitializer {
 			if(pos==null||block==null)return;
 			debugOut("Config request packet recieved! pos: "+pos+" block: "+block);
 			ServerPlayerEntity player = (ServerPlayerEntity) packetContext.getPlayer();
-			player.networkHandler.sendPacket(createStartPacket(pos, block, config.maxBlocks, config.maxRange, config.bonusExhaustionMultiplier, config.blacklistBlocks));
-			debugOut("Start packet sent! pos: "+pos+" block: "+block+" maxB: "+config.maxBlocks+" maxR: "+config.maxRange+" bem: "+config.bonusExhaustionMultiplier+" blackB: "+config.blacklistBlocks);
+			player.networkHandler.sendPacket(createStartPacket(pos, block, config.maxBlocks, config.maxRange, config.bonusExhaustionMultiplier, config.enableBlockEntities, config.blacklistBlocks));
+			debugOut("Start packet sent! pos: "+pos+" block: "+block+" maxB: "+config.maxBlocks+" maxR: "+config.maxRange+" bem: "+config.bonusExhaustionMultiplier+" ebe: "+config.enableBlockEntities+" blacklist: "+Arrays.asList(config.blacklistBlocks));
 		});
 
 		ServerSidePacketRegistry.INSTANCE.register(BREAK_BLOCK, (packetContext, packetByteBuf) -> {
@@ -74,6 +83,12 @@ public class EasyExcavate implements ModInitializer {
 			World world = player.getEntityWorld();
 			ItemStack stack = player.getMainHandStack();
 			BlockState state = world.getBlockState(pos);
+			BlockEntity blockEntity = world.getBlockEntity(pos);
+			if (blockEntity instanceof Inventory) {
+				debugOut("test");
+				debugOut(((Inventory)blockEntity).isInvEmpty());
+				ItemScatterer.spawn(world, pos, (Inventory) blockEntity);
+			}
 			stack.onBlockBroken(world, state, pos, player);
 			if (!player.isCreative()) {
 				ItemStack stack2 = stack.isEmpty() ? ItemStack.EMPTY : stack.copy();
@@ -102,7 +117,7 @@ public class EasyExcavate implements ModInitializer {
 		return new CustomPayloadC2SPacket(REQUEST_CONFIG, buf);
 	}
 
-	public static CustomPayloadS2CPacket createStartPacket(BlockPos pos, Block block, int maxBlocks, int maxRange, float bonusExhaustionMultiplier, String[] blacklistBlocks) {
+	public static CustomPayloadS2CPacket createStartPacket(BlockPos pos, Block block, int maxBlocks, int maxRange, float bonusExhaustionMultiplier, boolean enableBlockEntities, String[] blacklistBlocks) {
 		PacketByteBuf buf = new PacketByteBuf(Unpooled.buffer());
 		buf.writeBoolean(pos != null && block != null);
 		if (pos != null && block != null) {
@@ -112,6 +127,7 @@ public class EasyExcavate implements ModInitializer {
 		buf.writeInt(maxBlocks);
 		buf.writeInt(maxRange);
 		buf.writeFloat(bonusExhaustionMultiplier);
+		buf.writeBoolean(enableBlockEntities);
 		if (blacklistBlocks != null) {
 			buf.writeInt(blacklistBlocks.length);
 			for (String s: blacklistBlocks) {
