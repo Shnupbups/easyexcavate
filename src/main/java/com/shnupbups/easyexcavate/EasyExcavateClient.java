@@ -9,6 +9,7 @@ import net.minecraft.block.BlockWithEntity;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.ItemStack;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.registry.Registry;
@@ -34,20 +35,37 @@ public class EasyExcavateClient implements ClientModInitializer {
 		ClientSidePacketRegistry.INSTANCE.register(EasyExcavate.START, (packetContext, packetByteBuf) -> {
 			BlockPos pos = null;
 			Block block = null;
+			float hardness = 0.0f;
+			ItemStack tool = null;
 			if (packetByteBuf.readBoolean()) {
 				pos = packetByteBuf.readBlockPos();
-				block = Registry.BLOCK.get(Identifier.createSplit(packetByteBuf.readString(32767), ':'));
+				block = Registry.BLOCK.get(Identifier.createSplit(packetByteBuf.readString(packetByteBuf.readInt()), ':'));
+				hardness = packetByteBuf.readFloat();
 			}
 			if(pos==null||block==null)return;
+			if(packetByteBuf.readBoolean()) {
+				tool = packetByteBuf.readItemStack();
+			}
 			int maxBlocks = packetByteBuf.readInt();
 			int maxRange = packetByteBuf.readInt();
 			float bonusExhaustionMultiplier = packetByteBuf.readFloat();
 			boolean enableBlockEntities = packetByteBuf.readBoolean();
 			int blacklistBlocksLength = packetByteBuf.readInt();
 			String[] blacklistBlocks = new String[blacklistBlocksLength];
-			if (blacklistBlocksLength != 0)
-				for (int i = 0; i < blacklistBlocksLength; i++)
+			if (blacklistBlocksLength != 0) {
+				for (int i = 0; i < blacklistBlocksLength; i++) {
 					blacklistBlocks[i] = packetByteBuf.readString(packetByteBuf.readInt());
+				}
+			}
+			int blacklistToolsLength = packetByteBuf.readInt();
+			String[] blacklistTools = new String[blacklistToolsLength];
+			if (blacklistToolsLength != 0) {
+				for (int j = 0; j < blacklistToolsLength; j++) {
+					blacklistTools[j] = packetByteBuf.readString(packetByteBuf.readInt());
+				}
+			}
+			boolean checkHardness = packetByteBuf.readBoolean();
+			boolean isToolRequired = packetByteBuf.readBoolean();
 			PlayerEntity player = packetContext.getPlayer();
 			World world = player.getEntityWorld();
 			int blocksBroken = 1;
@@ -57,19 +75,28 @@ public class EasyExcavateClient implements ClientModInitializer {
 			ArrayList<BlockPos> nextPos = new ArrayList<>();
 			EasyExcavate.debugOut(pos+ " be: "+world.getBlockEntity(pos));
 			float exhaust = 0;
-			EasyExcavate.debugOut("Start packet recieved! pos: "+pos+" block: "+block+" maxB: "+maxBlocks+" maxR: "+maxRange+" bem: "+bonusExhaustionMultiplier+" ebe: "+enableBlockEntities+" blacklist: "+Arrays.asList(blacklistBlocks));
-			while (blocksBroken < maxBlocks && player.isUsingEffectiveTool(block.getDefaultState()) && player.getHungerManager().getFoodLevel()>exhaust/2 && blocksBroken<(player.getMainHandStack().getDurability()-player.getMainHandStack().getDamage()) && !Arrays.asList(blacklistBlocks).contains(String.valueOf(block)) && (!(block instanceof BlockWithEntity) || enableBlockEntities)) {
-				EasyExcavate.debugOut(currentPos+ " be: "+world.getBlockEntity(currentPos));
+			ExcavateConfig serverConfig = new ExcavateConfig(maxBlocks, maxRange, bonusExhaustionMultiplier, EasyExcavate.debug(), enableBlockEntities, EasyExcavate.reverseBehavior(), blacklistBlocks, blacklistTools, checkHardness, isToolRequired);
+			EasyExcavate.debugOut("Start packet recieved! "+serverConfig.toString());
+			while (blocksBroken < maxBlocks && player.isUsingEffectiveTool(block.getDefaultState()) && player.getHungerManager().getFoodLevel()>exhaust/2 && (!(block instanceof BlockWithEntity) || enableBlockEntities)) {
+				if(Arrays.asList(blacklistBlocks).contains(String.valueOf(block))||tool!=null&&Arrays.asList(blacklistTools).contains(String.valueOf(Registry.ITEM.getId(tool.getItem()).toString()))) {
+					break;
+				}
 				ArrayList<BlockPos> neighbours = getSameNeighbours(world,currentPos,block);
 				neighbours.removeAll(brokenPos);
 				if(neighbours.size()>=1) {
 					for(BlockPos p:neighbours) {
-						if(blocksBroken>=maxBlocks||!player.isUsingEffectiveTool(block.getDefaultState())||player.getHungerManager().getFoodLevel()<=exhaust/2||blocksBroken>=(player.getMainHandStack().getDurability()-player.getMainHandStack().getDamage()) || Arrays.asList(blacklistBlocks).contains(String.valueOf(block).substring(6, String.valueOf(block).length() - 1)) || (block instanceof BlockWithEntity && !enableBlockEntities)) {
-							break;
-						}
-						if(!brokenPos.contains(p)&&player.isUsingEffectiveTool(world.getBlockState(p))) {
+						if(
+								blocksBroken>=maxBlocks ||
+								!player.isUsingEffectiveTool(block.getDefaultState()) ||
+								player.getHungerManager().getFoodLevel()<=exhaust/2 ||
+								Arrays.asList(blacklistBlocks).contains(String.valueOf(block).substring(6, String.valueOf(block).length() - 1)) ||
+								(block instanceof BlockWithEntity && !enableBlockEntities) ||
+								((tool==null||!tool.getItem().canDamage())&&isToolRequired) ||
+								(tool.getItem().canDamage()&&blocksBroken>=(tool.getDurability()-tool.getDamage()))
+						) break;
+						if(!brokenPos.contains(p)&&player.isUsingEffectiveTool(world.getBlockState(p))&&(!checkHardness||world.getBlockState(p).getHardness(world,p)<=hardness)) {
 							if(Math.sqrt(p.getSquaredDistance(pos))<=maxRange)nextPos.add(p);
-							MinecraftClient.getInstance().getNetworkHandler().getClientConnection().sendPacket(EasyExcavate.createBreakPacket(p));
+							MinecraftClient.getInstance().getNetworkHandler().getClientConnection().send(EasyExcavate.createBreakPacket(p));
 							brokenPos.add(p);
 							blocksBroken++;
 							exhaust = (0.005F*blocksBroken)*((blocksBroken*bonusExhaustionMultiplier)+1);
@@ -82,7 +109,7 @@ public class EasyExcavateClient implements ClientModInitializer {
 				} else break;
 			}
 			if(!player.isCreative()) {
-				MinecraftClient.getInstance().getNetworkHandler().getClientConnection().sendPacket(EasyExcavate.createEndPacket(blocksBroken));
+				MinecraftClient.getInstance().getNetworkHandler().getClientConnection().send(EasyExcavate.createEndPacket(blocksBroken));
 				EasyExcavate.debugOut("End packet sent! blocks broken: "+blocksBroken);
 			}
 		});

@@ -1,5 +1,7 @@
 package com.shnupbups.easyexcavate;
 
+import java.util.Arrays;
+
 public class ExcavateConfig {
 	public int maxBlocks;
 	public int maxRange;
@@ -8,8 +10,11 @@ public class ExcavateConfig {
 	public boolean enableBlockEntities;
 	public boolean reverseBehavior;
 	public String[] blacklistBlocks;
+	public String[] blacklistTools;
+	public boolean checkHardness;
+	public boolean isToolRequired;
 
-	public ExcavateConfig(int maxBlocks, int maxRange, float bonusExhaustionMultiplier, boolean debugOutput, boolean enableBlockEntities, boolean reverseBehavior, String[] blacklistBlocks) {
+	public ExcavateConfig(int maxBlocks, int maxRange, float bonusExhaustionMultiplier, boolean debugOutput, boolean enableBlockEntities, boolean reverseBehavior, String[] blacklistBlocks, String[] blacklistTools, boolean checkHardness, boolean isToolRequired) {
 		this.maxBlocks = maxBlocks;
 		this.maxRange = maxRange;
 		this.bonusExhaustionMultiplier = bonusExhaustionMultiplier;
@@ -17,16 +22,26 @@ public class ExcavateConfig {
 		this.enableBlockEntities = enableBlockEntities;
 		this.reverseBehavior = reverseBehavior;
 		this.blacklistBlocks = blacklistBlocks;
+		this.blacklistTools = blacklistTools;
+		this.checkHardness = checkHardness;
+		this.isToolRequired = isToolRequired;
 		updateConfig();
 	}
 
 	public ExcavateConfig() {
-		this(128, 8, 0.125f, false, false, false, new String[]{"minecraft:example"});
+		this(128, 8, 0.125f, false, false, false, new String[]{"minecraft:example_block","somemod:example_block_two"},new String[]{"minecraft:example_pickaxe","somemod:example_axe"},false,false);
 	}
 
 	public void updateConfig() {
-		if(blacklistBlocks==null) {
-			blacklistBlocks=new String[]{"minecraft:example"};
+		if(blacklistBlocks==null||blacklistBlocks.length==0) {
+			blacklistBlocks=new String[]{"minecraft:example_block","somemod:example_block_two"};
 		}
+		if(blacklistTools==null||blacklistTools.length==0) {
+			blacklistTools=new String[]{"minecraft:example_pickaxe","somemod:example_axe"};
+		}
+	}
+
+	public String toString() {
+		return "maxB: "+maxBlocks+" maxR: "+maxRange+" bem: "+bonusExhaustionMultiplier+" ebe: "+enableBlockEntities+" blackB: "+Arrays.asList(blacklistBlocks)+" blackT: "+Arrays.asList(blacklistTools)+" checkH: "+checkHardness+" itr: "+isToolRequired;
 	}
 }
