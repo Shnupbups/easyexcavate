@@ -66,6 +66,8 @@ public class EasyExcavateClient implements ClientModInitializer {
 			}
 			boolean checkHardness = packetByteBuf.readBoolean();
 			boolean isToolRequired = packetByteBuf.readBoolean();
+			boolean invertBlockBlacklist = packetByteBuf.readBoolean();
+			boolean invertToolBlacklist = packetByteBuf.readBoolean();
 			PlayerEntity player = packetContext.getPlayer();
 			World world = player.getEntityWorld();
 			int blocksBroken = 1;
@@ -75,12 +77,15 @@ public class EasyExcavateClient implements ClientModInitializer {
 			ArrayList<BlockPos> nextPos = new ArrayList<>();
 			EasyExcavate.debugOut(pos+ " be: "+world.getBlockEntity(pos));
 			float exhaust = 0;
-			ExcavateConfig serverConfig = new ExcavateConfig(maxBlocks, maxRange, bonusExhaustionMultiplier, EasyExcavate.debug(), enableBlockEntities, EasyExcavate.reverseBehavior(), blacklistBlocks, blacklistTools, checkHardness, isToolRequired);
+			ExcavateConfig serverConfig = new ExcavateConfig(maxBlocks, maxRange, bonusExhaustionMultiplier, EasyExcavate.debug(), enableBlockEntities, EasyExcavate.reverseBehavior(), blacklistBlocks, blacklistTools, checkHardness, isToolRequired, invertBlockBlacklist, invertToolBlacklist);
 			EasyExcavate.debugOut("Start packet recieved! "+serverConfig.toString());
 			while (blocksBroken < maxBlocks && player.isUsingEffectiveTool(block.getDefaultState()) && player.getHungerManager().getFoodLevel()>exhaust/2 && (!(block instanceof BlockWithEntity) || enableBlockEntities)) {
-				if(Arrays.asList(blacklistBlocks).contains(String.valueOf(block))||tool!=null&&Arrays.asList(blacklistTools).contains(String.valueOf(Registry.ITEM.getId(tool.getItem()).toString()))) {
-					break;
-				}
+				if(
+						(Arrays.asList(blacklistBlocks).contains(Registry.BLOCK.getId(block).toString()) && !invertBlockBlacklist) ||
+						(!Arrays.asList(blacklistBlocks).contains(Registry.BLOCK.getId(block).toString()) && invertBlockBlacklist) ||
+						(tool!=null && Arrays.asList(blacklistTools).contains(String.valueOf(Registry.ITEM.getId(tool.getItem()).toString())) && !invertToolBlacklist) ||
+						(tool!=null && !Arrays.asList(blacklistTools).contains(String.valueOf(Registry.ITEM.getId(tool.getItem()).toString())) && invertToolBlacklist)
+				) break;
 				ArrayList<BlockPos> neighbours = getSameNeighbours(world,currentPos,block);
 				neighbours.removeAll(brokenPos);
 				if(neighbours.size()>=1) {
@@ -89,7 +94,10 @@ public class EasyExcavateClient implements ClientModInitializer {
 								blocksBroken>=maxBlocks ||
 								!player.isUsingEffectiveTool(block.getDefaultState()) ||
 								player.getHungerManager().getFoodLevel()<=exhaust/2 ||
-								Arrays.asList(blacklistBlocks).contains(String.valueOf(block).substring(6, String.valueOf(block).length() - 1)) ||
+								Arrays.asList(blacklistBlocks).contains(Registry.BLOCK.getId(block).toString()) && !invertBlockBlacklist ||
+								!Arrays.asList(blacklistBlocks).contains(Registry.BLOCK.getId(block).toString()) && invertBlockBlacklist ||
+								(tool!=null && Arrays.asList(blacklistTools).contains(String.valueOf(Registry.ITEM.getId(tool.getItem()).toString())) && !invertToolBlacklist) ||
+								(tool!=null && !Arrays.asList(blacklistTools).contains(String.valueOf(Registry.ITEM.getId(tool.getItem()).toString())) && invertToolBlacklist) ||
 								(block instanceof BlockWithEntity && !enableBlockEntities) ||
 								((tool==null||!tool.getItem().canDamage())&&isToolRequired) ||
 								(tool.getItem().canDamage()&&blocksBroken>=(tool.getDurability()-tool.getDamage()))

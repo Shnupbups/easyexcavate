@@ -13,8 +13,10 @@ public class ExcavateConfig {
 	public String[] blacklistTools;
 	public boolean checkHardness;
 	public boolean isToolRequired;
+	public boolean invertBlockBlacklist;
+	public boolean invertToolBlacklist;
 
-	public ExcavateConfig(int maxBlocks, int maxRange, float bonusExhaustionMultiplier, boolean debugOutput, boolean enableBlockEntities, boolean reverseBehavior, String[] blacklistBlocks, String[] blacklistTools, boolean checkHardness, boolean isToolRequired) {
+	public ExcavateConfig(int maxBlocks, int maxRange, float bonusExhaustionMultiplier, boolean debugOutput, boolean enableBlockEntities, boolean reverseBehavior, String[] blacklistBlocks, String[] blacklistTools, boolean checkHardness, boolean isToolRequired, boolean invertBlockBlacklist, boolean invertToolBlacklist) {
 		this.maxBlocks = maxBlocks;
 		this.maxRange = maxRange;
 		this.bonusExhaustionMultiplier = bonusExhaustionMultiplier;
@@ -25,11 +27,13 @@ public class ExcavateConfig {
 		this.blacklistTools = blacklistTools;
 		this.checkHardness = checkHardness;
 		this.isToolRequired = isToolRequired;
+		this.invertBlockBlacklist = invertBlockBlacklist;
+		this.invertToolBlacklist = invertToolBlacklist;
 		updateConfig();
 	}
 
 	public ExcavateConfig() {
-		this(128, 8, 0.125f, false, false, false, new String[]{"minecraft:example_block","somemod:example_block_two"},new String[]{"minecraft:example_pickaxe","somemod:example_axe"},false,false);
+		this(128, 8, 0.125f, false, false, false, new String[]{"minecraft:example_block","somemod:example_block_two"},new String[]{"minecraft:example_pickaxe","somemod:example_axe"},false,false,false,false);
 	}
 
 	public void updateConfig() {
@@ -42,6 +46,6 @@ public class ExcavateConfig {
 	}
 
 	public String toString() {
-		return "maxB: "+maxBlocks+" maxR: "+maxRange+" bem: "+bonusExhaustionMultiplier+" ebe: "+enableBlockEntities+" blackB: "+Arrays.asList(blacklistBlocks)+" blackT: "+Arrays.asList(blacklistTools)+" checkH: "+checkHardness+" itr: "+isToolRequired;
+		return "maxB: "+maxBlocks+" maxR: "+maxRange+" bem: "+bonusExhaustionMultiplier+" ebe: "+enableBlockEntities+" blackB: "+Arrays.asList(blacklistBlocks)+" blackT: "+Arrays.asList(blacklistTools)+" checkH: "+checkHardness+" itr: "+isToolRequired+" invBB: "+invertBlockBlacklist+" invTB: "+invertToolBlacklist;
 	}
 }

@@ -164,6 +164,8 @@ public class EasyExcavate implements ModInitializer {
 			buf.writeInt(0);
 		buf.writeBoolean(serverConfig.checkHardness);
 		buf.writeBoolean(serverConfig.isToolRequired);
+		buf.writeBoolean(serverConfig.invertBlockBlacklist);
+		buf.writeBoolean(serverConfig.invertToolBlacklist);
 		return new CustomPayloadS2CPacket(START, buf);
 	}
 
