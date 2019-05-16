@@ -15,12 +15,15 @@ import net.minecraft.inventory.Inventory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.network.packet.CustomPayloadC2SPacket;
+import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.ItemScatterer;
 import net.minecraft.util.PacketByteBuf;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.registry.Registry;
 import net.minecraft.world.World;
+import net.minecraft.world.loot.context.LootContext;
+import net.minecraft.world.loot.context.LootContextParameters;
 
 import java.io.File;
 import java.io.FileReader;
@@ -65,17 +68,17 @@ public class EasyExcavate implements ModInitializer {
 			ItemStack tool = null;
 			if (packetByteBuf.readBoolean()) {
 				pos = packetByteBuf.readBlockPos();
-				block = Registry.BLOCK.get(Identifier.createSplit(packetByteBuf.readString(packetByteBuf.readInt()), ':'));
+				block = Registry.BLOCK.get(Identifier.splitOn(packetByteBuf.readString(packetByteBuf.readInt()), ':'));
 				hardness = packetByteBuf.readFloat();
 			}
 			if(pos==null||block==null)return;
 			if (packetByteBuf.readBoolean()) {
 				tool = packetByteBuf.readItemStack();
 			}
-			debugOut("Config request packet recieved! pos: "+pos+" block: "+block+" hardness: "+hardness+" tool: "+tool);
+			debugOut("Config request packet recieved! pos: " + pos + " block: " + block + " hardness: " + hardness + " tool: " + tool);
 			ServerPlayerEntity player = (ServerPlayerEntity) packetContext.getPlayer();
 			player.networkHandler.sendPacket(createStartPacket(pos, block, hardness, tool, config));
-			debugOut("Start packet sent! pos: "+pos+" block: "+block+" hardness: "+hardness+" tool: "+tool+" "+config.toString());
+			debugOut("Start packet sent! pos: " + pos + " block: " + block + " hardness: " + hardness + " tool: " + tool + " " + config.toString());
 		});
 
 		ServerSidePacketRegistry.INSTANCE.register(BREAK_BLOCK, (packetContext, packetByteBuf) -> {
@@ -93,17 +96,19 @@ public class EasyExcavate implements ModInitializer {
 				debugOut(((Inventory)blockEntity).isInvEmpty());
 				ItemScatterer.spawn(world, pos, (Inventory) blockEntity);
 			}
-			stack.onBlockBroken(world, state, pos, player);
+			if(!config.dontTakeDurability)stack.onBlockBroken(world, state, pos, player);
 			if (!player.isCreative()) {
-				ItemStack stack2 = stack.isEmpty() ? ItemStack.EMPTY : stack.copy();
-				state.getBlock().afterBreak(world, player, pos, state, world.getBlockEntity(pos), stack2);
+				LootContext.Builder lcb = new LootContext.Builder((ServerWorld)world).put(LootContextParameters.POSITION, pos).put(LootContextParameters.BLOCK_STATE,state).put(LootContextParameters.TOOL,player.getMainHandStack());
+				if(blockEntity!=null) {
+					lcb = lcb.put(LootContextParameters.BLOCK_ENTITY,blockEntity);
+				}
+				Block.dropStacks(state,lcb);
 			}
 			world.breakBlock(pos,false);
 		});
 
 		ServerSidePacketRegistry.INSTANCE.register(END, (packetContext, packetByteBuf) -> {
-			int blocksBroken = 0;
-			blocksBroken = packetByteBuf.readInt();
+			int blocksBroken = packetByteBuf.readInt();
 			PlayerEntity player = packetContext.getPlayer();
 			float exhaust = (0.005F*blocksBroken)*(blocksBroken*config.bonusExhaustionMultiplier);
 			player.addExhaustion(exhaust);
@@ -142,30 +147,7 @@ public class EasyExcavate implements ModInitializer {
 		if(tool != null) {
 			buf.writeItemStack(tool);
 		}
-		buf.writeInt(serverConfig.maxBlocks);
-		buf.writeInt(serverConfig.maxRange);
-		buf.writeFloat(serverConfig.bonusExhaustionMultiplier);
-		buf.writeBoolean(serverConfig.enableBlockEntities);
-		if (serverConfig.blacklistBlocks != null || serverConfig.blacklistBlocks.length == 0) {
-			buf.writeInt(serverConfig.blacklistBlocks.length);
-			for (String s: serverConfig.blacklistBlocks) {
-				buf.writeInt(s.length());
-				buf.writeString(s);
-			}
-		} else
-			buf.writeInt(0);
-		if (serverConfig.blacklistTools != null || serverConfig.blacklistTools.length == 0) {
-			buf.writeInt(serverConfig.blacklistTools.length);
-			for (String s: serverConfig.blacklistTools) {
-				buf.writeInt(s.length());
-				buf.writeString(s);
-			}
-		} else
-			buf.writeInt(0);
-		buf.writeBoolean(serverConfig.checkHardness);
-		buf.writeBoolean(serverConfig.isToolRequired);
-		buf.writeBoolean(serverConfig.invertBlockBlacklist);
-		buf.writeBoolean(serverConfig.invertToolBlacklist);
+		serverConfig.writeConfig(buf);
 		return new CustomPayloadS2CPacket(START, buf);
 	}
 
@@ -184,11 +166,13 @@ public class EasyExcavate implements ModInitializer {
 		return new CustomPayloadC2SPacket(BREAK_BLOCK, buf);
 	}
 
-	public static void debugOut(String out) {
+	public static String debugOut(String out) {
 		if(config.debugOutput) System.out.println(out);
+		return out;
 	}
-	public static void debugOut(Object out) {
+	public static Object debugOut(Object out) {
 		debugOut(out.toString());
+		return out;
 	}
 
 	public static boolean reverseBehavior() {
