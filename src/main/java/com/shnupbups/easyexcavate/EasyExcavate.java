@@ -15,15 +15,12 @@ import net.minecraft.inventory.Inventory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.network.packet.CustomPayloadC2SPacket;
-import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.ItemScatterer;
 import net.minecraft.util.PacketByteBuf;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.registry.Registry;
 import net.minecraft.world.World;
-import net.minecraft.world.loot.context.LootContext;
-import net.minecraft.world.loot.context.LootContextParameters;
 
 import java.io.File;
 import java.io.FileReader;
@@ -98,11 +95,7 @@ public class EasyExcavate implements ModInitializer {
 			}
 			if(!config.dontTakeDurability)stack.onBlockBroken(world, state, pos, player);
 			if (!player.isCreative()) {
-				LootContext.Builder lcb = new LootContext.Builder((ServerWorld)world).put(LootContextParameters.POSITION, pos).put(LootContextParameters.BLOCK_STATE,state).put(LootContextParameters.TOOL,player.getMainHandStack());
-				if(blockEntity!=null) {
-					lcb = lcb.put(LootContextParameters.BLOCK_ENTITY,blockEntity);
-				}
-				Block.dropStacks(state,lcb);
+				state.getBlock().afterBreak(world, player, pos, state, world.getBlockEntity(pos), stack.copy());
 			}
 			world.breakBlock(pos,false);
 		});
